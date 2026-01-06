@@ -42,33 +42,55 @@ function startScanner() {
 }
 
 function onScanSuccess(barcode) {
-  scanner.stop();
+  console.log("Scanned barcode:", barcode);
 
-  // CALL BACKEND (Apps Script)
-  fetch("https://script.google.com/macros/s/AKfycbxA-QnzptwyMwxg-au7u6pu-tIfv5O1v3-fOp4ysrJ-Aj94Ur7IKUWksCK3iXOyY0eF/exec?action=scan&barcode=" + barcode)
+  // Stop camera only temporarily
+  scanner.stop().catch(() => {});
+
+  fetch(
+    "https://script.google.com/macros/s/AKfycbxA-QnzptwyMwxg-au7u6pu-tIfv5O1v3-fOp4ysrJ-Aj94Ur7IKUWksCK3iXOyY0eF/exec" +
+    "?action=scan&barcode=" + encodeURIComponent(barcode)
+  )
     .then(r => r.json())
     .then(p => {
+      console.log("Backend response:", p);
+
       if (!p) {
-        alert("Product not found");
+        alert("Product not found in backend");
+        startScanner(); // restart camera
         return;
       }
+
       let item = cart.find(i => i.sku === p.sku);
-      if (item) item.qty++;
-      else cart.push({ ...p, qty: 1 });
-      renderCart();
+      if (item) {
+        item.qty++;
+      } else {
+        cart.push({ ...p, qty: 1 });
+      }
+
+      renderCart();      // 👈 THIS updates frontend UI
+      startScanner();    // 👈 restart camera for next scan
+    })
+    .catch(err => {
+      alert("Fetch error: " + err);
+      startScanner();
     });
 }
 
+
 function renderCart() {
-  let total = 0;
   const ul = document.getElementById("cart");
   ul.innerHTML = "";
+  let total = 0;
+
   cart.forEach(i => {
     total += i.price * i.qty;
     ul.innerHTML += `<li>${i.name} x ${i.qty}</li>`;
   });
+
   document.getElementById("total").innerText = total;
 }
+
 </script>
 
 </body>

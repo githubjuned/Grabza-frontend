@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Scan & Pay</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    body { font-family: Arial; text-align: center; }
+    #reader { width: 300px; margin: auto; }
+  </style>
+</head>
+<body>
+
+<h2>Scan & Pay</h2>
+
+<button onclick="startScanner()">Start Scan</button>
+<div id="reader"></div>
+
+<h3>Cart</h3>
+<ul id="cart"></ul>
+<h3>Total ₹<span id="total">0</span></h3>
+
+<script>
+let cart = [];
+let scanner;
+
+function startScanner() {
+  scanner = new Html5Qrcode("reader");
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: 250,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.UPC_A,
+        Html5QrcodeSupportedFormats.UPC_E
+      ]
+    },
+    onScanSuccess
+  );
+}
+
+function onScanSuccess(barcode) {
+  scanner.stop();
+
+  // CALL BACKEND (Apps Script)
+  fetch("https://script.google.com/macros/s/AKfycbxA-QnzptwyMwxg-au7u6pu-tIfv5O1v3-fOp4ysrJ-Aj94Ur7IKUWksCK3iXOyY0eF/exec?action=scan&barcode=" + barcode)
+    .then(r => r.json())
+    .then(p => {
+      if (!p) {
+        alert("Product not found");
+        return;
+      }
+      let item = cart.find(i => i.sku === p.sku);
+      if (item) item.qty++;
+      else cart.push({ ...p, qty: 1 });
+      renderCart();
+    });
+}
+
+function renderCart() {
+  let total = 0;
+  const ul = document.getElementById("cart");
+  ul.innerHTML = "";
+  cart.forEach(i => {
+    total += i.price * i.qty;
+    ul.innerHTML += `<li>${i.name} x ${i.qty}</li>`;
+  });
+  document.getElementById("total").innerText = total;
+}
+</script>
+
+</body>
+</html>
